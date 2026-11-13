@@ -54,22 +54,62 @@ transition:transform .4s var(--ease),box-shadow .3s,background .3s,width .3s,hei
 .nav-toggle[aria-expanded=true] i:nth-child(2){opacity:0}
 .nav-toggle[aria-expanded=true] i:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
 
-/* ===== 4. HERO + NETWORK ANIMATION ===== */
-.hero{position:relative;min-height:calc(100svh - var(--nav));display:flex;align-items:center;padding-block:3rem;overflow:hidden;
+/* ===== 4. HERO: image + generated circuit traces + drifting streaks =====
+   --hero-hue recolours the image: 200deg = blue (matches the site), 0deg = the original red. */
+.hero{--hero-hue:200deg;position:relative;min-height:calc(100svh - var(--nav));display:flex;align-items:center;padding-block:3rem 5rem;overflow:hidden;
 background:radial-gradient(900px 500px at 85% -10%,rgba(79,140,255,.2),transparent 60%)}
-.hero-inner{position:relative;z-index:1}
+.h-bg{position:absolute;inset:-5%;background:url(assets/hero.jpg) center/cover;filter:blur(3px) hue-rotate(var(--hero-hue)) saturate(1.1);opacity:.28;
+transform:translate3d(calc(var(--px,0) * -14px),calc(var(--py,0) * -10px),0) scale(1.05);transition:transform .5s ease-out;animation:pan 30s ease-in-out infinite alternate}
+@keyframes pan{to{translate:-3% 2%}}
+.hero::after{content:"";position:absolute;inset:0;pointer-events:none; /* left veil keeps the text readable; bottom fades into About */
+background:linear-gradient(90deg,var(--bg) 0%,rgba(15,23,42,.55) 45%,transparent 100%),linear-gradient(transparent 75%,var(--bg))}
+.h-streaks i{position:absolute;left:0;top:var(--y);width:var(--w);height:2px;border-radius:2px;opacity:0;box-shadow:0 0 8px var(--accent);
+background:linear-gradient(90deg,transparent,var(--accent2),#fff);animation:streak var(--d) linear infinite;animation-delay:var(--k)}
+.h-streaks i.v{left:var(--x);top:0;width:2px;height:var(--w);background:linear-gradient(180deg,transparent,var(--accent2),#fff);animation-name:streakv}
+@keyframes streak{0%{transform:translateX(-30vw);opacity:0}10%,90%{opacity:.8}100%{transform:translateX(120vw);opacity:0}}
+@keyframes streakv{0%{transform:translateY(-30vh);opacity:0}10%,90%{opacity:.7}100%{transform:translateY(120vh);opacity:0}}
+.hero-inner{position:relative;z-index:1;display:grid;grid-template-columns:1.1fr .9fr;gap:2rem;align-items:center}
+.hero-copy{position:relative;z-index:2}
 .hello{color:var(--accent2);font-weight:600;margin-bottom:.8rem}
 .sub{font-size:clamp(1.05rem,2.2vw,1.25rem);margin-top:1.2rem}
 .cta{display:flex;flex-wrap:wrap;gap:1rem;margin-top:1.5rem}
-.net{position:absolute;inset:0;width:100%;height:100%;opacity:.7}
-.net .layer{transition:transform .4s ease-out;animation:drift 18s ease-in-out infinite alternate}
-.net line{stroke:var(--accent);stroke-width:1;opacity:.35;stroke-dasharray:1;stroke-dashoffset:1;animation:draw 1.6s var(--ease) forwards;animation-delay:calc(var(--k)*70ms + .3s)}
-.net circle.n{fill:var(--accent2);transform-box:fill-box;transform-origin:center;transform:scale(0);animation:pop .6s var(--ease) forwards;animation-delay:calc(var(--k)*70ms + .2s)}
-.net circle.pulse{fill:#fff}
-@keyframes draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}@keyframes pop{to{transform:scale(1)}}
-@keyframes drift{to{translate:14px -10px}}
-[data-hero]{opacity:0;transform:translateY(28px);animation:up .8s var(--ease) forwards;animation-delay:calc(var(--i)*120ms + 150ms)}
-@keyframes up{to{opacity:1;transform:none}}
+h1 .w{display:inline-block;opacity:0;transform:translateY(.7em);animation:up .7s var(--ease) forwards;animation-delay:calc(var(--n) * 70ms + .3s);transition:translate .2s var(--ease),color .2s}
+h1 .w:hover{translate:0 -4px;color:var(--accent2)}
+[data-hero]{opacity:0;transform:translateY(28px);animation:up .8s var(--ease) forwards;animation-delay:calc(var(--i) * 120ms + 150ms)}
+@keyframes up{to{opacity:1;transform:none}}@keyframes draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+/* art: scroll moves it up and fades it (--hs, set on .hero by script.js); pointer tilts it (--px/--py) */
+.hero-art{position:relative;display:grid;justify-items:center;gap:1rem;transform:translateY(calc(var(--hs,0) * -50px));opacity:calc(1 - var(--hs,0) * .9)}
+.art-tilt{position:relative;width:min(100%,520px);aspect-ratio:1;opacity:0;animation:artin 1s var(--ease) .4s forwards;
+transform:perspective(900px) rotateY(calc(var(--px,0) * 8deg)) rotateX(calc(var(--py,0) * -8deg));transition:transform .3s ease-out}
+@keyframes artin{from{opacity:0;scale:.9}to{opacity:1;scale:1}}
+.glow{position:absolute;inset:12%;border-radius:50%;background:radial-gradient(circle,rgba(79,140,255,.45),transparent 65%);filter:blur(20px);animation:glowp 5s ease-in-out infinite}
+@keyframes glowp{50%{transform:scale(1.15);opacity:.6}}
+.lock{position:absolute;inset:0;overflow:hidden;-webkit-mask-image:radial-gradient(circle closest-side,#000 60%,transparent 100%);mask-image:radial-gradient(circle closest-side,#000 60%,transparent 100%)}
+.lock img{width:100%;height:100%;object-fit:cover;filter:hue-rotate(var(--hero-hue)) saturate(1.15) contrast(1.05);transition:filter .4s}
+.art-tilt:hover .lock img{filter:hue-rotate(var(--hero-hue)) saturate(1.4) contrast(1.1) brightness(1.15)}
+.scan{position:absolute;inset:0;background:linear-gradient(transparent 46%,rgba(125,176,255,.45) 50%,transparent 54%);animation:scan 4.5s ease-in-out infinite}
+@keyframes scan{from{transform:translateY(-100%)}to{transform:translateY(100%)}}
+.h-svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.ring{fill:none;stroke:var(--accent2);stroke-opacity:.5;stroke-width:1.2;transform-box:fill-box;transform-origin:center;transition:stroke-opacity .3s}
+.r1{stroke-dasharray:3 12;animation:spin 50s linear infinite}.r2{stroke-dasharray:60 20 4 20;animation:spin 70s linear infinite reverse}
+@keyframes spin{to{transform:rotate(360deg)}}.art-tilt:hover .ring{stroke-opacity:.95}
+.wire{fill:none;stroke:var(--accent);stroke-opacity:.4;stroke-width:1.2;stroke-dasharray:1;stroke-dashoffset:1;animation:draw 1.6s var(--ease) forwards;animation-delay:calc(var(--k) * 90ms + .6s)}
+.hp{fill:none;stroke:#e3f0ff;stroke-width:2;stroke-linecap:round;stroke-dasharray:14 186;opacity:0;animation:fadein 1s ease 2.2s forwards} /* pulse: 14 on, 186 off = every 200 units */
+.hp.g{stroke:#4f8cff;stroke-width:6;stroke-opacity:.4}
+@keyframes fadein{to{opacity:1}}
+.hn{fill:var(--accent2);animation:twinkle 2.4s ease-in-out infinite;animation-delay:calc(var(--k) * .3s)}@keyframes twinkle{50%{opacity:.25}}
+.pr{position:absolute;width:20px;height:20px;margin:-10px;border:2px solid var(--accent2);border-radius:50%;pointer-events:none;animation:pr .9s ease-out forwards}
+@keyframes pr{to{transform:scale(18);opacity:0}}
+.chip{display:inline-flex;align-items:center;gap:.6rem;margin:0;padding:.4rem .9rem;border:1px solid var(--line);border-radius:999px;background:var(--glass);font:500 .8rem ui-monospace,Consolas,monospace;color:var(--muted);transition:transform .25s var(--ease),border-color .25s}
+.chip:hover{transform:translateY(-2px);border-color:var(--accent)}
+.chip i{width:8px;height:8px;border-radius:50%;background:#34d399;animation:dotping 2s infinite}
+@keyframes dotping{0%{box-shadow:0 0 0 0 rgba(52,211,153,.6)}70%,100%{box-shadow:0 0 0 8px transparent}}
+.cue{position:absolute;left:50%;bottom:1.3rem;z-index:2;width:26px;height:42px;margin-left:-13px;border:1.5px solid var(--line);border-radius:14px;opacity:calc(1 - var(--hs,0) * 4);transition:border-color .25s}
+.cue::after{content:"";position:absolute;left:50%;top:8px;width:4px;height:8px;margin-left:-2px;border-radius:2px;background:var(--accent2);animation:cue 1.8s ease-in-out infinite}
+.cue:hover{border-color:var(--accent)}@keyframes cue{50%{transform:translateY(12px);opacity:.3}}
+@media(max-width:900px){.hero-inner{grid-template-columns:1fr}.hero{padding-block:2rem 5rem}.art-tilt{width:min(100%,380px)}}
+@media(max-width:480px){.h-streaks i.v{display:none}.art-tilt{width:min(100%,300px)}}
+@media(prefers-reduced-motion:reduce){.h-bg,.glow,.scan,.ring,.cue::after,.chip i,.hn,.h-streaks i{animation:none}.h-streaks{display:none}.hp{display:none}.wire{animation:none;stroke-dashoffset:0}.art-tilt{animation:none;opacity:1}}
 
 /* ===== 5. BUTTONS (magnetic via --tx/--ty, click ripple) ===== */
 .btn{position:relative;overflow:hidden;display:inline-block;padding:.85rem 1.6rem;border-radius:999px;font:inherit;font-weight:600;cursor:pointer;border:1px solid transparent;
@@ -216,7 +256,7 @@ transform:translateY(-12px);opacity:0;visibility:hidden;transition:.3s}
 /* Reduced motion: no animation, everything visible immediately */
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}
 *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important;transition-delay:0s!important}
-.net line{stroke-dashoffset:0}.net circle.n{transform:none}}
+}
 
 /* ===== 13. CIRCUIT BACKGROUND (About -> Contact) =====
    Cables are always visible. Evenly spaced pulses flow along them at a constant speed (driven by script.js at a capped

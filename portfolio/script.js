@@ -6,9 +6,10 @@
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   /* 1. NAV STATE + SCROLL PROGRESS */
-  const header = $('.site-header'), bar = $('.progress');
+  const header = $('.site-header'), bar = $('.progress'), hero = $('.hero');
   const onScroll = () => {
     header.classList.toggle('scrolled', scrollY > 40);
+    hero.style.setProperty('--hs', Math.min(scrollY / (innerHeight * .8), 1).toFixed(3)); // 0 at top -> 1 once the hero is mostly gone
     bar.style.width = (scrollY / (document.documentElement.scrollHeight - innerHeight) * 100) + '%';
   };
   addEventListener('scroll', onScroll, { passive: true }); onScroll();
@@ -20,28 +21,40 @@
   links.onclick = (e) => e.target.closest('a') && setMenu(false);
   addEventListener('keydown', (e) => e.key === 'Escape' && setMenu(false));
 
-  /* 3. HERO NETWORK: nodes link to their 2 nearest neighbours; lines draw in, pulses travel along some.
-     Tweak COLS/ROWS for density, JITTER for randomness. */
-  const net = $('#net'), NS = 'http://www.w3.org/2000/svg', COLS = 6, ROWS = 4, JITTER = 55;
+  /* 3. HERO: headline word split, circuit traces from the lock, pointer tilt, click ping */
+  const NS = 'http://www.w3.org/2000/svg';
   const mk = (tag, attrs, parent) => { const el = document.createElementNS(NS, tag); for (const k in attrs) el.setAttribute(k, attrs[k]); parent.appendChild(el); return el; };
-  const layer = mk('g', { class: 'layer' }, net), pts = [];
-  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647; // seeded: same layout every load
-  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++)
-    pts.push([100 + c * 120 + (rnd() - .5) * JITTER * 2, 90 + r * 140 + (rnd() - .5) * JITTER * 2]);
-  const edges = new Set();
-  pts.forEach((p, i) => pts.map((q, j) => [j, (p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2]).filter(([j]) => j !== i)
-    .sort((a, b) => a[1] - b[1]).slice(0, 2).forEach(([j]) => edges.add(i < j ? i + '-' + j : j + '-' + i)));
-  [...edges].forEach((e, k) => {
-    const [a, b] = e.split('-').map(Number);
-    mk('line', { x1: pts[a][0], y1: pts[a][1], x2: pts[b][0], y2: pts[b][1], pathLength: 1, style: `--k:${k}` }, layer);
-    if (!reduced && k % 4 === 0) { // signal pulse travelling along the line
-      const c = mk('circle', { class: 'pulse', r: 3, opacity: .9 }, layer);
-      const m = mk('animateMotion', { path: `M${pts[a]} L${pts[b]}`, dur: 2.5 + rnd() * 2 + 's', begin: 2 + rnd() * 3 + 's', repeatCount: 'indefinite' }, c);
-    }
-  });
-  pts.forEach((p, k) => mk('circle', { class: 'n', cx: p[0], cy: p[1], r: 4, style: `--k:${k}` }, layer));
-  if (!reduced) $('.hero').addEventListener('mousemove', (e) => { // mouse parallax
-    layer.style.transform = `translate(${(e.clientX / innerWidth - .5) * -24}px,${(e.clientY / innerHeight - .5) * -24}px)`;
+
+  const h1 = $('#hero-title'), title = h1.textContent.trim(); // words rise in one by one (CSS .w); aria-label keeps it readable
+  h1.setAttribute('aria-label', title);
+  h1.innerHTML = title.split(/\s+/).map((w, n) => `<span class="w" aria-hidden="true" style="--n:${n}">${w}</span>`).join(' ');
+
+  // Traces: start beside the lock, run flat, bend 45 degrees away from centre, run to the edge. COUNT = number of cables, seed = layout.
+  let seed = 11; const rnd = () => (seed = seed * 16807 % 2147483647) / 2147483647;
+  const COUNT = 16, tr = $('#traces');
+  for (let i = 0; i < COUNT; i++) {
+    const side = i % 2 ? 1 : -1, row = i >> 1, y0 = Math.round(170 + row * 25 + rnd() * 8), up = y0 < 260 ? -1 : 1;
+    const x0 = 260 + side * 62, x1 = Math.round(x0 + side * (30 + rnd() * 60)), d = Math.round(25 + rnd() * 55), far = side > 0 ? 1200 : -260;
+    const dAttr = `M${x0} ${y0}H${x1}l${side * d} ${up * d}H${far}`;
+    mk('path', { class: 'wire', d: dAttr, pathLength: 1, style: `--k:${i}` }, tr);
+    mk('circle', { class: 'hn', cx: x1, cy: y0, r: 2.5, style: `--k:${i}` }, tr);
+    mk('circle', { class: 'hn', cx: x1 + side * d, cy: y0 + up * d, r: 2.5, style: `--k:${i + 3}` }, tr);
+    mk('path', { class: 'hp', d: dAttr, 'data-s': i % 3 ? 1 : -1 }, tr); // pulses: mostly outward, some inbound
+  }
+
+  if (!reduced && matchMedia('(pointer: fine)').matches) { // pointer tilt + background parallax (mouse only)
+    let f = 0, nx = 0, ny = 0;
+    const set = () => { hero.style.setProperty('--px', nx.toFixed(3)); hero.style.setProperty('--py', ny.toFixed(3)); f = 0; };
+    hero.addEventListener('pointermove', (e) => { const r = hero.getBoundingClientRect(); nx = (e.clientX - r.left) / r.width * 2 - 1; ny = (e.clientY - r.top) / r.height * 2 - 1; f = f || requestAnimationFrame(set); });
+    hero.addEventListener('pointerleave', () => { nx = ny = 0; set(); });
+  }
+
+  const art = $('.art-tilt'), chipText = $('.chip span'); let ct; // click the lock: ripple + status message
+  art.addEventListener('click', (e) => {
+    const r = art.getBoundingClientRect(), s = document.createElement('span');
+    s.className = 'pr'; s.style.left = e.clientX - r.left + 'px'; s.style.top = e.clientY - r.top + 'px';
+    art.appendChild(s); setTimeout(() => s.remove(), 900);
+    chipText.textContent = 'Signal received'; clearTimeout(ct); ct = setTimeout(() => { chipText.textContent = 'Open to internships'; }, 1800);
   });
 
   /* 3b. PROJECT SCENES: scatter dots and calculator keys are generated here (edit the data to restyle) */
@@ -54,29 +67,25 @@
     mk('text', { x: x + w / 2, y: y + 13.5, 'text-anchor': 'middle' }, keys).textContent = ch;
   });
 
-  /* 3c. CIRCUIT BACKGROUND: pulses flow along the cables at a constant speed, independent of scrolling.
-     FPS caps the redraw rate (lower = lighter on weak devices). SPEED = flow speed in SVG units/second.
-     PERIOD must equal the dash pattern total in style.css (22 + 218) so the loop never jumps. */
-  const zone = $('.circuit-zone'), FPS = 20, SPEED = 60, PERIOD = 240;
-  const flows = $$('.flow path').flatMap((p) => { // add a wider glow twin under each pulse (avoids a costly SVG filter)
-    const g = p.cloneNode(); g.classList.add('g'); p.before(g); return [p, g];
-  });
-  if (!reduced) {
+  /* 3c. PULSE FLOW (hero + circuit background): evenly spaced pulses move along SVG paths at a constant speed,
+     independent of scrolling. FPS caps redraws for weak devices; SPEED = SVG units/second; period = dash pattern total in CSS. */
+  const FPS = 20, SPEED = 60;
+  const startFlow = (el, selector, period) => {
+    if (reduced) return;
+    const flows = $$(selector, el).flatMap((p) => { const g = p.cloneNode(); g.classList.add('g'); p.before(g); return [p, g]; }); // glow twin (no SVG filter)
     let live = false, running = false, last = 0;
     const loop = (t) => {
       if (!live) { running = false; return; }
-      if (t - last >= 1000 / FPS) { // skip frames above FPS
-        last = t;
-        const off = (t * SPEED / 1000) % PERIOD;
+      if (t - last >= 1000 / FPS) {
+        last = t; const off = (t * SPEED / 1000) % period;
         flows.forEach((p) => { p.style.strokeDashoffset = (-off * p.dataset.s).toFixed(1); }); // data-s = +1 / -1 (direction only)
       }
       requestAnimationFrame(loop);
     };
-    new IntersectionObserver(([en]) => { // only animate while the zone is on screen
-      live = en.isIntersecting;
-      if (live && !running) { running = true; requestAnimationFrame(loop); }
-    }).observe(zone);
-  }
+    new IntersectionObserver(([en]) => { live = en.isIntersecting; if (live && !running) { running = true; requestAnimationFrame(loop); } }).observe(el); // only while on screen
+  };
+  startFlow($('.circuit-zone'), '.flow path', 240);
+  startFlow(hero, '.hp', 200);
 
   /* 4. SCROLL REVEALS: fire once at 12% visible */
   const io = new IntersectionObserver((es, o) => es.forEach((en) => {
